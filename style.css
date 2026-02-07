@@ -1,0 +1,9 @@
+body { background-color: #121212; color: #ffffff; font-family: sans-serif; }
+header { padding: 20px; background: #1e1e1e; border-bottom: 3px solid #00ff88; }
+button { padding: 10px 20px; background: #333; color: white; border: none; cursor: pointer; }
+button:hover { background: #00ff88; color: black; }
+table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+th { text-align: left; border-bottom: 2px solid #555; padding: 10px; color: #00ff88; }
+td { padding: 10px; border-bottom: 1px solid #333; }
+.calendar { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
+.game-card { background: #1e1e1e; padding: 15px; border-radius: 8px; border-left: 5px solid #00ff88; }
