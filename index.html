@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NBA Draft League HQ</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <h1>NBA Draft League | Season 4</h1>
+        <nav>
+            <button onclick="showSection('standings')">Standings</button>
+            <button onclick="showSection('schedule')">Schedule & Live Scores</button>
+            <button onclick="showSection('draft')">Draft Board</button>
+        </nav>
+    </header>
+
+    <main>
+        <section id="standings" class="active-section">
+            <h2>League Standings</h2>
+            <table id="standings-table">
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>W-L</th>
+                        <th>Total Score</th>
+                        <th>ADP</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
+        <section id="schedule" style="display:none;">
+            <h2>Upcoming Games</h2>
+            <div id="calendar-grid" class="calendar">
+                </div>
+        </section>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
