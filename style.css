@@ -1,107 +1,69 @@
-:root {
-    --bg-dark: #0a0a0a;
-    --card-bg: #161616;
-    /* Changed from neon-green to a metallic silver/grey */
-    --accent-color: #a0a0a0; 
-    --text-main: #ffffff;
-    --text-dim: #888888;
-    /* Added a subtle border color */
-    --border-color: #333333; 
-}
-
-body {
+/* --- Landing Page Styles --- */
+#landing-page {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
     background-color: var(--bg-dark);
-    color: var(--text-main);
-    font-family: 'Inter', sans-serif;
-    margin: 0;
-    padding-bottom: 50px;
-}
-
-header {
-    background: #000;
-    padding: 15px 20px;
-    /* Accent color changed here */
-    border-bottom: 2px solid var(--accent-color); 
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    z-index: 999; /* Sits on top of everything */
 }
 
-.logo { font-weight: 900; font-size: 1.2rem; letter-spacing: 1px; }
+.landing-content { text-align: center; }
 
-nav button {
-    background: transparent;
-    color: var(--text-dim);
-    border: none;
-    padding: 8px 15px;
-    font-weight: bold;
+.landing-logo {
+    font-size: 3rem;
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: -webkit-linear-gradient(#fff, #888);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.season-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 30px;
+    width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.season-btn {
+    padding: 20px;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    color: white;
+    font-size: 1.2rem;
     cursor: pointer;
     transition: 0.3s;
-}
-
-nav button:hover, nav button.active {
-    /* Color and border changed to the new accent */
-    color: var(--accent-color); 
-    border-bottom: 2px solid var(--accent-color);
-}
-
-main { max-width: 1000px; margin: 20px auto; padding: 0 15px; }
-
-/* Tables */
-.table-container { overflow-x: auto; }
-table { width: 100%; border-collapse: collapse; margin-top: 10px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color); }
-th { text-align: left; padding: 15px; color: var(--text-dim); border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
-td { padding: 15px; border-bottom: 1px solid var(--border-color); }
-tr:last-child td { border-bottom: none; }
-
-/* Calendar Cards */
-.calendar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
-.game-card {
-    background: var(--card-bg);
-    padding: 15px;
     border-radius: 8px;
-    /* Accent border changed */
-    border-left: 4px solid var(--accent-color); 
-    border: 1px solid var(--border-color);
     position: relative;
-}
-.sport-tag { position: absolute; top: 10px; right: 10px; background: #333; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; color: var(--text-dim); }
-.matchup { font-size: 1.1rem; margin: 10px 0; display: flex; justify-content: space-between; }
-.btn-live {
-    display: block;
-    text-align: center;
-    background: #222;
-    /* Text color changed to the new accent */
-    color: var(--accent-color); 
-    text-decoration: none;
-    padding: 8px;
-    border-radius: 4px;
-    margin-top: 10px;
-    font-size: 0.9rem;
-    border: 1px solid var(--border-color);
-    transition: 0.2s;
-}
-.btn-live:hover { 
-    background: var(--accent-color); 
-    color: var(--bg-dark);
-    border-color: var(--accent-color);
+    font-family: 'Inter', sans-serif;
 }
 
-/* Rosters */
-.roster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
-.roster-card { 
-    background: var(--card-bg); 
-    padding: 15px; 
-    border-radius: 8px; 
-    border: 1px solid var(--border-color);
+.season-btn:hover {
+    border-color: var(--accent-color);
+    background: #252525;
+    transform: translateY(-2px);
 }
-.roster-card h3 { 
-    /* Team name color changed */
-    color: var(--text-main); 
-    margin-top: 0; 
+
+.active-season { border-left: 5px solid var(--accent-color); }
+
+.season-tag {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: #c00;
+    color: white;
+    font-size: 0.6rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
 }
-.gm-name { color: var(--accent-color); font-size: 0.9rem; margin-bottom: 10px; display: block; }
-.roster-card ul li { color: var(--text-dim); margin-bottom: 5px; }
+
+.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+
+.exit-btn { color: #555 !important; margin-left: auto; }
+.exit-btn:hover { color: #c00 !important; }
