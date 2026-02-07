@@ -1,63 +1,51 @@
-// 1. YOUR SHEET URL (Make sure it ends in &output=csv or /pub?output=csv)
-const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSQpg8qGniOaZerSAblOCFbWgde0-Uwx0bNo1aBUWzeWpAAYrj97D2FjpBE5kwGq501WktCW4bkaYEp/pub?output=csv';
-
-// 2. Fetch Function
-function loadData() {
-    Papa.parse(SHEET_URL, {
-        download: true,
-        header: true,
-        complete: function(results) {
-            console.log("Data loaded:", results.data);
-            renderStandings(results.data);
-            renderSchedule(results.data);
-        }
-    });
-}
-
-// 3. Render Standings Table
-function renderStandings(data) {
-    const tableBody = document.querySelector("#standings-table tbody");
-    // Filter to find rows that have 'Wins' (to avoid empty rows/wrong tabs)
-    // NOTE: In a real multi-tab sheet, you usually publish individual tabs as CSVs.
-    // For simplicity, verify your row headers match.
-    
-    data.forEach(row => {
-        if(row.Team && row.Wins) {
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-                <td>${row.Team}</td>
-                <td>${row.Wins}-${row.Losses}</td>
-                <td>${row.TotalDraftScore}</td>
-                <td>${row.AvgADP}</td>
-            `;
-            tableBody.appendChild(tr);
-        }
-    });
-}
-
-// 4. Render Schedule Cards
-function renderSchedule(data) {
-    const calendar = document.getElementById("calendar-grid");
-    data.forEach(row => {
-        if(row.GameID) { // Check if it's a schedule row
-            const card = document.createElement("div");
-            card.className = "game-card";
-            card.innerHTML = `
-                <h3>${row.Date} - ${row.Sport}</h3>
-                <p><strong>${row.HomeTeam}</strong> vs <strong>${row.AwayTeam}</strong></p>
-                <a href="${row.HomeLink}" target="_blank" style="color:#00ff88">View Home Lineup</a><br>
-                <a href="${row.AwayLink}" target="_blank" style="color:#00ff88">View Away Lineup</a>
-            `;
-            calendar.appendChild(card);
-        }
-    });
-}
-
-// 5. Tab Switching Logic
-window.showSection = function(id) {
-    document.querySelectorAll('section').forEach(s => s.style.display = 'none');
-    document.getElementById(id).style.display = 'block';
+// --- CONFIGURATION ---
+// Store the Google Sheet Links for each season here
+const SEASONS = {
+    s1: {
+        standings: 'YOUR_S1_STANDINGS_CSV_LINK', 
+        schedule:  'YOUR_S1_SCHEDULE_CSV_LINK',
+        rosters:   'YOUR_S1_ROSTERS_CSV_LINK'
+    },
+    s2: {
+        // You can add these links later when Season 2 starts
+        standings: '', schedule: '', rosters: ''
+    }
 };
 
-// Run on load
-loadData();
+// --- SEASON CONTROL FUNCTIONS ---
+
+function enterSeason(seasonId) {
+    const config = SEASONS[seasonId];
+    
+    if(!config || !config.standings) {
+        alert("Season data not found!");
+        return;
+    }
+
+    // 1. Hide Landing Page, Show Dashboard
+    document.getElementById('landing-page').style.display = 'none';
+    document.getElementById('main-dashboard').style.display = 'block';
+    document.getElementById('current-season-label').innerText = `/ ${seasonId.toUpperCase()}`;
+
+    // 2. Load the specific data for this season
+    loadCSV(config.standings, renderStandings);
+    loadCSV(config.schedule, renderSchedule);
+    loadCSV(config.rosters, renderRosters);
+}
+
+function exitSeason() {
+    // Reload page to go back to season selector
+    location.reload();
+}
+
+// --- DATA FETCHING (unchanged) ---
+function loadCSV(url, callback) {
+    if (!url) return; // Skip if link is empty
+    Papa.parse(url, {
+        download: true,
+        header: true,
+        complete: (results) => callback(results.data)
+    });
+}
+
+// ... (Keep your existing renderStandings, renderSchedule, renderRosters, and showSection functions exactly the same) ...
