@@ -127,6 +127,7 @@ function parseSchedule(csv: string): Game[] {
   const sportIdx = header.indexOf("sport");
   const homeScoreIdx = header.indexOf("homescore");
   const awayScoreIdx = header.indexOf("awayscore");
+  const draftIdIdx = header.indexOf("draftid");
 
   if (dateIdx === -1 || gameIdIdx === -1 || homeIdx === -1 || awayIdx === -1) return [];
 
@@ -144,6 +145,7 @@ function parseSchedule(csv: string): Game[] {
     const sport = sportIdx >= 0 ? row[sportIdx]?.trim() : "NBA";
     const homeScore = homeScoreIdx >= 0 ? row[homeScoreIdx]?.trim() : "";
     const awayScore = awayScoreIdx >= 0 ? row[awayScoreIdx]?.trim() : "";
+    const draftIdRaw = draftIdIdx >= 0 ? row[draftIdIdx]?.trim() : "";
 
     if (!gameId || !home || !away) continue;
 
@@ -153,12 +155,19 @@ function parseSchedule(csv: string): Game[] {
 
     const matchup: Matchup = { away, home };
 
+    // Parse draft ID (shared Real Sports contest ID for the game day)
+    if (draftIdRaw && !Number.isNaN(Number(draftIdRaw))) {
+      matchup.draftId = Number(draftIdRaw);
+    }
+
+    // HomeLink / AwayLink are Real Sports user draft codes
     if (homeLink) {
-      matchup.homeDraftLinks = [homeLink];
+      matchup.homeDraftCode = homeLink;
     }
     if (awayLink) {
-      matchup.awayDraftLinks = [awayLink];
+      matchup.awayDraftCode = awayLink;
     }
+
     if (homeScore && !Number.isNaN(Number(homeScore))) {
       matchup.homeScore = Number(homeScore);
     }
