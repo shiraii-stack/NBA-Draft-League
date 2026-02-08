@@ -185,9 +185,21 @@ function MatchupCard({
         {/* Away team */}
         <div className="flex flex-1 items-center gap-2">
           <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: awayColor }} />
-          <span className="text-sm font-semibold text-foreground">{matchup.away}</span>
+          <span className={`text-sm font-semibold ${
+            matchup.awayScore !== undefined && matchup.homeScore !== undefined
+              ? matchup.awayScore > matchup.homeScore
+                ? "text-emerald-400"
+                : matchup.awayScore < matchup.homeScore
+                  ? "text-muted-foreground"
+                  : "text-foreground"
+              : "text-foreground"
+          }`}>{matchup.away}</span>
           {matchup.awayScore !== undefined && (
-            <span className="ml-auto font-mono text-sm font-bold text-foreground">
+            <span className={`ml-auto font-mono text-sm font-bold ${
+              matchup.homeScore !== undefined && matchup.awayScore > matchup.homeScore
+                ? "text-emerald-400"
+                : "text-foreground"
+            }`}>
               {matchup.awayScore}
             </span>
           )}
@@ -198,9 +210,21 @@ function MatchupCard({
         {/* Home team */}
         <div className="flex flex-1 items-center gap-2">
           <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: homeColor }} />
-          <span className="text-sm font-semibold text-foreground">{matchup.home}</span>
+          <span className={`text-sm font-semibold ${
+            matchup.awayScore !== undefined && matchup.homeScore !== undefined
+              ? matchup.homeScore > matchup.awayScore
+                ? "text-emerald-400"
+                : matchup.homeScore < matchup.awayScore
+                  ? "text-muted-foreground"
+                  : "text-foreground"
+              : "text-foreground"
+          }`}>{matchup.home}</span>
           {matchup.homeScore !== undefined && (
-            <span className="ml-auto font-mono text-sm font-bold text-foreground">
+            <span className={`ml-auto font-mono text-sm font-bold ${
+              matchup.awayScore !== undefined && matchup.homeScore > matchup.awayScore
+                ? "text-emerald-400"
+                : "text-foreground"
+            }`}>
               {matchup.homeScore}
             </span>
           )}

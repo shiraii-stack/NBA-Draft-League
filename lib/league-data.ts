@@ -21,7 +21,8 @@ export type Matchup = {
   homeScore?: number;
   // Real Sports draft ID for this game day (shared across all matchups in a game)
   draftId?: number;
-  // User draft codes for the Real Sports API (one code per team GM)
+  // Real Sports user draft codes for each team's starting 5 lineup
+  // (from the HomeLink / AwayLink columns in the Google Sheet)
   homeDraftCode?: string;
   awayDraftCode?: string;
   // Starters for each team (up to 5)

@@ -28,7 +28,7 @@ export function SeasonDashboard({
       <HeroSection teams={teams} schedule={schedule} seasonLabel={seasonLabel} />
       <main className="mx-auto max-w-7xl px-4 py-12 lg:px-8">
         <div className="flex flex-col gap-16">
-          <StandingsSection teams={teams} />
+          <StandingsSection teams={teams} schedule={schedule} />
           <ScheduleSection schedule={schedule} teams={teams} />
           <TeamsSection teams={teams} />
           <DraftSection teams={teams} draftCapital={draftCapital} />

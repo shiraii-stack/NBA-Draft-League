@@ -6,6 +6,7 @@ import {
   teams as fallbackTeams,
   schedule as fallbackSchedule,
 } from "@/lib/league-data";
+import { calculateScores, mergeStandings } from "@/lib/score-calculator";
 import { SeasonDashboard } from "@/components/season-dashboard";
 
 export async function generateMetadata({
@@ -42,6 +43,15 @@ export default async function SeasonPage({
     schedule = data.schedule;
   } catch {
     // If sheets fetch fails entirely, fallback data is already set
+  }
+
+  // Auto-calculate scores from Real Sports draft codes and update standings
+  try {
+    const { scoredSchedule, standings } = await calculateScores(schedule, teams);
+    schedule = scoredSchedule;
+    teams = mergeStandings(teams, standings);
+  } catch {
+    // If score calculation fails, keep original data
   }
 
   return (
