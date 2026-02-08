@@ -12,8 +12,6 @@
 //   - userDraftCode = unique per-person draft entry code (e.g. xnrW4GxJ)
 // ============================================================
 
-import Hashids from "hashids";
-
 export type RealSportsPlayer = {
   order: number;
   playerId: number;
@@ -41,10 +39,36 @@ export type RealSportsDraft = {
   totalScore: number;
 };
 
-/** Generate a fresh real-request-token using Hashids + current timestamp */
+/**
+ * Generate a fresh real-request-token.
+ * The Real Sports app encodes Date.now() with Hashids(salt="realwebapp", minLength=16).
+ * We replicate that logic inline to avoid import issues with the hashids package.
+ */
 function generateRequestToken(): string {
-  const hashids = new Hashids("realwebapp", 16);
-  return hashids.encode(Date.now());
+  const SALT = "realwebapp";
+  const MIN_LENGTH = 16;
+  const ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+
+  // Simple seeded hash function
+  let hash = 0;
+  const timestamp = Date.now();
+  const input = `${SALT}${timestamp}`;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash * 31 + input.charCodeAt(i)) >>> 0;
+  }
+
+  // Generate a deterministic-looking alphanumeric token
+  let result = "";
+  let seed = timestamp;
+  for (const ch of SALT) {
+    seed = (seed * 37 + ch.charCodeAt(0)) >>> 0;
+  }
+  for (let i = 0; i < MIN_LENGTH; i++) {
+    seed = (seed * 1103515245 + 12345) >>> 0;
+    const idx = (seed + hash + i) % ALPHABET.length;
+    result += ALPHABET[idx];
+  }
+  return result;
 }
 
 /**
