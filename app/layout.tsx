@@ -8,7 +8,7 @@ const _geist = Geist({ subsets: ['latin'] })
 const _geistMono = Geist_Mono({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'NBA Draft League — Season 1',
+  title: 'NBA Draft League',
   description: 'The official home of the NBA Draft League. Standings, schedule, rosters, draft capital, and live scoring.',
 }
 
