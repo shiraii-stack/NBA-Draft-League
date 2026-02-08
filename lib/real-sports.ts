@@ -2,6 +2,7 @@
 // REAL SPORTS API INTEGRATION
 // Fetches draft lineup data from the Real Sports app.
 // Auth headers are stored as environment variables.
+// The real-request-token is generated dynamically using Hashids.
 //
 // API URL pattern:
 //   GET https://web.realsports.io/games/playerratingcontest/{draftId}/view/{userDraftCode}?contestType=sport
@@ -10,6 +11,8 @@
 //   - draftId = contest ID for an entire game day/sport (e.g. 1442)
 //   - userDraftCode = unique per-person draft entry code (e.g. xnrW4GxJ)
 // ============================================================
+
+import Hashids from "hashids";
 
 export type RealSportsPlayer = {
   order: number;
@@ -38,6 +41,12 @@ export type RealSportsDraft = {
   totalScore: number;
 };
 
+/** Generate a fresh real-request-token using Hashids + current timestamp */
+function generateRequestToken(): string {
+  const hashids = new Hashids("realwebapp", 16);
+  return hashids.encode(Date.now());
+}
+
 /**
  * Fetches a single draft entry from Real Sports.
  * Must be called server-side (API route) since it needs auth headers.
@@ -48,12 +57,13 @@ export async function fetchDraftEntry(
 ): Promise<RealSportsDraft | null> {
   const authInfo = process.env.REAL_AUTH_INFO;
   const deviceUuid = process.env.REAL_DEVICE_UUID;
-  const requestToken = process.env.REAL_REQUEST_TOKEN;
 
   if (!authInfo || !deviceUuid) {
     console.error("Real Sports API credentials not configured");
     return null;
   }
+
+  const requestToken = generateRequestToken();
 
   const url = `https://web.realsports.io/games/playerratingcontest/${draftId}/view/${userDraftCode}?contestType=sport`;
 
