@@ -26,12 +26,15 @@ export const seasons: SeasonConfig[] = [
     label: "Season 1",
     locked: false,
     description: "The inaugural NBA Draft League season",
-    sheetBaseUrl:
-      "https://docs.google.com/spreadsheets/d/e/2PACX-1vSQpg8qGniOaZerSAblOCFbWgde0-Uwx0bNo1aBUWzeWpAAYrj97D2FjpBE5kwGq501WktCW4bkaYEp/pub",
+    // Google Sheets integration — disabled until valid GIDs are set.
+    // To enable: set sheetBaseUrl to your published sheet URL and
+    // update the gids below with the actual tab GID numbers from
+    // the URL bar when you click each tab in Google Sheets.
+    sheetBaseUrl: "",
     gids: {
       standings: 0,
-      schedule: 1358139029,
-      rosters: 728498492,
+      schedule: 0,
+      rosters: 0,
     },
   },
   {
