@@ -1,10 +1,16 @@
 import { notFound, redirect } from "next/navigation";
 import { getSeasonConfig } from "@/lib/seasons-config";
 import { fetchSeasonData } from "@/lib/sheets";
-import { draftCapital } from "@/lib/league-data";
+import {
+  draftCapital,
+  teams as fallbackTeams,
+  schedule as fallbackSchedule,
+} from "@/lib/league-data";
 import { SeasonDashboard } from "@/components/season-dashboard";
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+export async function generateMetadata({
+  params,
+}: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const seasonId = Number.parseInt(id, 10);
   const config = getSeasonConfig(seasonId);
@@ -27,7 +33,16 @@ export default async function SeasonPage({
   if (!config) notFound();
   if (config.locked) redirect("/");
 
-  const { teams, schedule } = await fetchSeasonData(config);
+  let teams = fallbackTeams;
+  let schedule = fallbackSchedule;
+
+  try {
+    const data = await fetchSeasonData(config);
+    teams = data.teams;
+    schedule = data.schedule;
+  } catch {
+    // If sheets fetch fails entirely, fallback data is already set
+  }
 
   return (
     <SeasonDashboard

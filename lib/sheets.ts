@@ -234,6 +234,32 @@ function parseRosters(csv: string): Partial<Record<string, { gm: string; roster:
 // Returns teams + schedule for a season, merging sheets data
 // with static fallback data.
 // ============================================================
+/** Fetch with a timeout to prevent hanging requests from crashing SSR */
+async function fetchWithTimeout(url: string, timeoutMs = 5000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      next: { revalidate: 60 },
+    });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Safely fetch a CSV tab, returning empty string on any error */
+async function safeFetchCSV(baseUrl: string, gid: number): Promise<string> {
+  try {
+    const res = await fetchWithTimeout(csvUrl(baseUrl, gid));
+    if (!res.ok) return "";
+    return await res.text();
+  } catch {
+    return "";
+  }
+}
+
 export async function fetchSeasonData(config: SeasonConfig): Promise<{
   teams: Team[];
   schedule: Game[];
@@ -247,30 +273,21 @@ export async function fetchSeasonData(config: SeasonConfig): Promise<{
   let rostersData: ReturnType<typeof parseRosters> = {};
 
   try {
-    const [standingsRes, scheduleRes, rostersRes] = await Promise.all([
-      fetch(csvUrl(config.sheetBaseUrl, config.gids.standings), {
-        next: { revalidate: 60 },
-      }),
-      fetch(csvUrl(config.sheetBaseUrl, config.gids.schedule), {
-        next: { revalidate: 60 },
-      }),
-      fetch(csvUrl(config.sheetBaseUrl, config.gids.rosters), {
-        next: { revalidate: 60 },
-      }),
+    const [standingsCSV, scheduleCSV, rostersCSV] = await Promise.all([
+      safeFetchCSV(config.sheetBaseUrl, config.gids.standings),
+      safeFetchCSV(config.sheetBaseUrl, config.gids.schedule),
+      safeFetchCSV(config.sheetBaseUrl, config.gids.rosters),
     ]);
 
-    if (standingsRes.ok) {
-      const text = await standingsRes.text();
-      standingsData = parseStandings(text);
+    if (standingsCSV) {
+      standingsData = parseStandings(standingsCSV);
     }
-    if (scheduleRes.ok) {
-      const text = await scheduleRes.text();
-      const parsed = parseSchedule(text);
+    if (scheduleCSV) {
+      const parsed = parseSchedule(scheduleCSV);
       if (parsed.length > 0) scheduleData = parsed;
     }
-    if (rostersRes.ok) {
-      const text = await rostersRes.text();
-      rostersData = parseRosters(text);
+    if (rostersCSV) {
+      rostersData = parseRosters(rostersCSV);
     }
   } catch (e) {
     console.error("Failed to fetch Google Sheets data, using fallback:", e);
