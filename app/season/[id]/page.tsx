@@ -46,10 +46,11 @@ export default async function SeasonPage({
   }
 
   // Auto-calculate scores from Real Sports draft codes and update standings
+  // Sheet standings are the baseline (Games 1-6); new API results add on top
   try {
-    const { scoredSchedule, standings } = await calculateScores(schedule, teams);
+    const { scoredSchedule, newWins } = await calculateScores(schedule, teams);
     schedule = scoredSchedule;
-    teams = mergeStandings(teams, standings);
+    teams = mergeStandings(teams, newWins);
   } catch {
     // If score calculation fails, keep original data
   }

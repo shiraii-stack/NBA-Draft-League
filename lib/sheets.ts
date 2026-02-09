@@ -113,21 +113,49 @@ function parseStandings(csv: string): Partial<Record<string, { wins: number; los
 // Expected columns: Date, GameID, HomeTeam, AwayTeam, HomeLink, AwayLink, Sport
 // Optional columns: HomeScore, AwayScore
 // ============================================================
+/** Find a column index, trying multiple name variants */
+function findCol(header: string[], ...variants: string[]): number {
+  for (const v of variants) {
+    const idx = header.indexOf(v);
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+
+/**
+ * Extract a Real Sports draft code from a value that may be:
+ * - A raw draft code like "xnrW4GxJ"
+ * - A full URL like "https://realsports.io/games/view/xnrW4GxJ"
+ * - A special keyword like "FORFEIT" or "DQ"
+ */
+function extractDraftCode(raw: string): string {
+  if (!raw) return "";
+  const trimmed = raw.trim();
+  const lower = trimmed.toLowerCase();
+  // Preserve special keywords
+  if (lower === "forfeit" || lower === "dq") return trimmed;
+  // Extract code from URL
+  const urlMatch = trimmed.match(/realsports\.io\/games\/view\/([A-Za-z0-9]+)/);
+  if (urlMatch) return urlMatch[1];
+  // Already a raw code
+  return trimmed;
+}
+
 function parseSchedule(csv: string): Game[] {
   const rows = parseCSV(csv);
   if (rows.length < 2) return [];
 
-  const header = rows[0].map((h) => h.toLowerCase().trim());
-  const dateIdx = header.indexOf("date");
-  const gameIdIdx = header.indexOf("gameid");
-  const homeIdx = header.indexOf("hometeam");
-  const awayIdx = header.indexOf("awayteam");
-  const homeLinkIdx = header.indexOf("homelink");
-  const awayLinkIdx = header.indexOf("awaylink");
-  const sportIdx = header.indexOf("sport");
-  const homeScoreIdx = header.indexOf("homescore");
-  const awayScoreIdx = header.indexOf("awayscore");
-  const draftIdIdx = header.indexOf("draftid");
+  const header = rows[0].map((h) => h.toLowerCase().trim().replace(/\s+/g, ""));
+  const dateIdx = findCol(header, "date");
+  const gameIdIdx = findCol(header, "gameid", "game", "gameday");
+  const homeIdx = findCol(header, "hometeam", "home");
+  const awayIdx = findCol(header, "awayteam", "away");
+  const homeLinkIdx = findCol(header, "homelink", "homedraft", "homedraftlink");
+  const awayLinkIdx = findCol(header, "awaylink", "awaydraft", "awaydraftlink");
+  const sportIdx = findCol(header, "sport");
+  const homeScoreIdx = findCol(header, "homescore");
+  const awayScoreIdx = findCol(header, "awayscore");
+  const draftIdIdx = findCol(header, "draftid", "contestid", "draft_id");
 
   if (dateIdx === -1 || gameIdIdx === -1 || homeIdx === -1 || awayIdx === -1) return [];
 
@@ -140,8 +168,8 @@ function parseSchedule(csv: string): Game[] {
     const date = row[dateIdx]?.trim();
     const home = row[homeIdx]?.trim();
     const away = row[awayIdx]?.trim();
-    const homeLink = homeLinkIdx >= 0 ? row[homeLinkIdx]?.trim() : "";
-    const awayLink = awayLinkIdx >= 0 ? row[awayLinkIdx]?.trim() : "";
+    const homeLink = homeLinkIdx >= 0 ? extractDraftCode(row[homeLinkIdx] ?? "") : "";
+    const awayLink = awayLinkIdx >= 0 ? extractDraftCode(row[awayLinkIdx] ?? "") : "";
     const sport = sportIdx >= 0 ? row[sportIdx]?.trim() : "NBA";
     const homeScore = homeScoreIdx >= 0 ? row[homeScoreIdx]?.trim() : "";
     const awayScore = awayScoreIdx >= 0 ? row[awayScoreIdx]?.trim() : "";
