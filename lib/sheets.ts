@@ -123,9 +123,10 @@ function findCol(header: string[], ...variants: string[]): number {
 }
 
 /**
- * Extract a Real Sports draft code from a value that may be:
- * - A raw draft code like "xnrW4GxJ"
- * - A full URL like "https://realsports.io/games/view/xnrW4GxJ"
+ * Extract a Real Sports user draft code from a value that may be:
+ * - A raw code like "xnrW4GxJ"
+ * - A full URL like "https://web.realsports.io/games/playerratingcontest/1429/view/Y3KmAmyJ?contestType=sport"
+ *   (the user ID is the part between the last /view/ and the ? or end of string)
  * - A special keyword like "FORFEIT" or "DQ"
  */
 function extractDraftCode(raw: string): string {
@@ -134,11 +135,28 @@ function extractDraftCode(raw: string): string {
   const lower = trimmed.toLowerCase();
   // Preserve special keywords
   if (lower === "forfeit" || lower === "dq") return trimmed;
-  // Extract code from URL
-  const urlMatch = trimmed.match(/realsports\.io\/games\/view\/([A-Za-z0-9]+)/);
-  if (urlMatch) return urlMatch[1];
+  // Full URL: extract user ID from /view/{userId}?...
+  const viewMatch = trimmed.match(/\/view\/([A-Za-z0-9_-]+)/);
+  if (viewMatch) return viewMatch[1];
   // Already a raw code
   return trimmed;
+}
+
+/**
+ * Extract a draft ID (contest ID) from a value that may be:
+ * - A raw number like "1429"
+ * - A full URL like "https://web.realsports.io/games/playerratingcontest/1429/view/..."
+ */
+function extractDraftId(raw: string): number | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  // Try as raw number first
+  const num = Number(trimmed);
+  if (!Number.isNaN(num) && num > 0) return num;
+  // Extract from URL pattern /playerratingcontest/{id}/
+  const urlMatch = trimmed.match(/playerratingcontest\/(\d+)/);
+  if (urlMatch) return Number(urlMatch[1]);
+  return undefined;
 }
 
 function parseSchedule(csv: string): Game[] {
@@ -174,6 +192,9 @@ function parseSchedule(csv: string): Game[] {
     const homeScore = homeScoreIdx >= 0 ? row[homeScoreIdx]?.trim() : "";
     const awayScore = awayScoreIdx >= 0 ? row[awayScoreIdx]?.trim() : "";
     const draftIdRaw = draftIdIdx >= 0 ? row[draftIdIdx]?.trim() : "";
+    // Also try extracting the raw HomeLink/AwayLink before code extraction
+    const rawHomeLink = homeLinkIdx >= 0 ? row[homeLinkIdx]?.trim() ?? "" : "";
+    const rawAwayLink = awayLinkIdx >= 0 ? row[awayLinkIdx]?.trim() ?? "" : "";
 
     if (!gameId || !home || !away) continue;
 
@@ -183,17 +204,25 @@ function parseSchedule(csv: string): Game[] {
 
     const matchup: Matchup = { away, home };
 
-    // Parse draft ID (shared Real Sports contest ID for the game day)
-    if (draftIdRaw && !Number.isNaN(Number(draftIdRaw))) {
-      matchup.draftId = Number(draftIdRaw);
+    // Parse draft ID: first try the DraftID column, then try extracting from the URLs
+    const parsedDraftId = extractDraftId(draftIdRaw)
+      ?? extractDraftId(rawHomeLink)
+      ?? extractDraftId(rawAwayLink);
+    if (parsedDraftId) {
+      matchup.draftId = parsedDraftId;
     }
 
-    // HomeLink / AwayLink are Real Sports user draft codes
+    // HomeLink / AwayLink are Real Sports user draft codes (extracted from full URLs)
     if (homeLink) {
       matchup.homeDraftCode = homeLink;
     }
     if (awayLink) {
       matchup.awayDraftCode = awayLink;
+    }
+
+    // Debug: log first few matchups with draft data
+    if (i <= 5 || (homeLink || awayLink)) {
+      console.log(`[v0] Row ${i}: ${away} @ ${home} | draftId=${matchup.draftId} | homeCode=${homeLink} | awayCode=${awayLink} | rawHome=${rawHomeLink.substring(0, 80)}`);
     }
 
     if (homeScore && !Number.isNaN(Number(homeScore))) {
@@ -312,6 +341,12 @@ export async function fetchSeasonData(config: SeasonConfig): Promise<{
     }
     if (scheduleCSV) {
       const parsed = parseSchedule(scheduleCSV);
+      const withDrafts = parsed.filter(g => g.matchups.some(m => m.draftId));
+      console.log("[v0] Parsed schedule: games=" + parsed.length + " withDrafts=" + withDrafts.length);
+      if (withDrafts.length > 0) {
+        const sampleM = withDrafts[0].matchups.find(m => m.draftId);
+        console.log("[v0] Sample matchup: draftId=" + sampleM?.draftId + " homeCode=" + sampleM?.homeDraftCode + " awayCode=" + sampleM?.awayDraftCode);
+      }
       if (parsed.length > 0) scheduleData = parsed;
     }
     if (rostersCSV) {

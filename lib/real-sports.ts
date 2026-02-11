@@ -80,7 +80,7 @@ export async function fetchDraftEntry(
   userDraftCode: string,
 ): Promise<RealSportsDraft | null> {
   const authInfo = process.env.REAL_AUTH_INFO;
-  const deviceUuid = process.env.REAL_DEVICE_UUID;
+  const deviceUuid = process.env.REAL_USER_UUID ?? process.env.REAL_DEVICE_UUID;
 
   if (!authInfo || !deviceUuid) {
     console.error("Real Sports API credentials not configured");

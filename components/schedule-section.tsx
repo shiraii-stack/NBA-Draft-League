@@ -262,7 +262,7 @@ function MatchupCard({
         <div className="border-t border-border px-4 py-3">
           {hasDraftData && matchup.draftId ? (
             <div className="grid gap-4 md:grid-cols-2">
-              {matchup.awayDraftCode && (
+              {matchup.awayDraftCode && !["forfeit", "dq"].includes(matchup.awayDraftCode.toLowerCase()) && (
                 <DraftLineupPanel
                   label={`${matchup.away} Draft`}
                   draftId={matchup.draftId}
@@ -270,13 +270,33 @@ function MatchupCard({
                   teamColor={awayColor}
                 />
               )}
-              {matchup.homeDraftCode && (
+              {matchup.awayDraftCode?.toLowerCase() === "forfeit" && (
+                <div className="flex items-center gap-2 rounded bg-red-500/10 px-3 py-2">
+                  <span className="text-xs font-bold uppercase text-red-400">{matchup.away} -- FORFEIT</span>
+                </div>
+              )}
+              {matchup.awayDraftCode?.toLowerCase() === "dq" && (
+                <div className="flex items-center gap-2 rounded bg-amber-500/10 px-3 py-2">
+                  <span className="text-xs font-bold uppercase text-amber-400">{matchup.away} -- DISQUALIFIED</span>
+                </div>
+              )}
+              {matchup.homeDraftCode && !["forfeit", "dq"].includes(matchup.homeDraftCode.toLowerCase()) && (
                 <DraftLineupPanel
                   label={`${matchup.home} Draft`}
                   draftId={matchup.draftId}
                   draftCode={matchup.homeDraftCode}
                   teamColor={homeColor}
                 />
+              )}
+              {matchup.homeDraftCode?.toLowerCase() === "forfeit" && (
+                <div className="flex items-center gap-2 rounded bg-red-500/10 px-3 py-2">
+                  <span className="text-xs font-bold uppercase text-red-400">{matchup.home} -- FORFEIT</span>
+                </div>
+              )}
+              {matchup.homeDraftCode?.toLowerCase() === "dq" && (
+                <div className="flex items-center gap-2 rounded bg-amber-500/10 px-3 py-2">
+                  <span className="text-xs font-bold uppercase text-amber-400">{matchup.home} -- DISQUALIFIED</span>
+                </div>
               )}
             </div>
           ) : hasLinkData ? (
