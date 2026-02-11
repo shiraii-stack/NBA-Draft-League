@@ -175,6 +175,12 @@ function parseSchedule(csv: string): Game[] {
   const awayScoreIdx = findCol(header, "awayscore");
   const draftIdIdx = findCol(header, "draftid", "contestid", "draft_id");
 
+  console.log("[v0] Schedule header:", JSON.stringify(header));
+  console.log("[v0] Column indices: date=" + dateIdx + " gameId=" + gameIdIdx + " home=" + homeIdx + " away=" + awayIdx + " homeLink=" + homeLinkIdx + " awayLink=" + awayLinkIdx + " draftId=" + draftIdIdx);
+  if (rows.length > 1) {
+    console.log("[v0] Raw row 1:", JSON.stringify(rows[1]));
+    console.log("[v0] Raw row 2:", JSON.stringify(rows[2]));
+  }
   if (dateIdx === -1 || gameIdIdx === -1 || homeIdx === -1 || awayIdx === -1) return [];
 
   // Group rows by GameID
