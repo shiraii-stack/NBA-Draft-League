@@ -41,15 +41,15 @@ export function SeasonDashboard({
   const [schedule, setSchedule] = useState(initialSchedule);
   const [scoresLoading, setScoresLoading] = useState(false);
 
-  // Collect all matchups that need scoring (have draftId + codes, but no scores yet)
+  // Collect all matchups that need scoring (have draftId + draft links, but no scores yet)
   const collectUnscoredMatchups = useCallback(() => {
     const matchups: {
       gameLabel: string;
       home: string;
       away: string;
       draftId: number;
-      homeDraftCode?: string;
-      awayDraftCode?: string;
+      homeDraftLinks?: string[];
+      awayDraftLinks?: string[];
     }[] = [];
 
     for (const game of initialSchedule) {
@@ -57,10 +57,14 @@ export function SeasonDashboard({
       if (game.label.toLowerCase().includes("preseason")) continue;
 
       for (const m of game.matchups) {
-        // Only score matchups with a draftId and at least one draft code, and no scores yet
+        const hasLinks =
+          (m.homeDraftLinks && m.homeDraftLinks.length > 0) ||
+          (m.awayDraftLinks && m.awayDraftLinks.length > 0);
+
+        // Only score matchups with a draftId and at least one draft link, and no scores yet
         if (
           m.draftId &&
-          (m.homeDraftCode || m.awayDraftCode) &&
+          hasLinks &&
           m.homeScore === undefined &&
           m.awayScore === undefined
         ) {
@@ -69,8 +73,8 @@ export function SeasonDashboard({
             home: m.home,
             away: m.away,
             draftId: m.draftId,
-            homeDraftCode: m.homeDraftCode,
-            awayDraftCode: m.awayDraftCode,
+            homeDraftLinks: m.homeDraftLinks,
+            awayDraftLinks: m.awayDraftLinks,
           });
         }
       }

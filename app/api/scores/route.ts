@@ -4,13 +4,11 @@ import { fetchDraftEntry } from "@/lib/real-sports";
 /**
  * POST /api/scores
  *
- * Accepts a list of matchups with draftId + draft codes,
- * fetches each draft from the Real Sports API, totals the
- * player scores per team, determines winners, and returns
- * the scored matchups + computed standings delta.
+ * Accepts matchups with draftId + arrays of player draft user IDs (one per
+ * player in each team's starting 5). Fetches each individual player's draft
+ * from the Real Sports API, sums scores per team, determines winners.
  *
- * Body: { matchups: Array<{ gameLabel, home, away, draftId, homeDraftCode, awayDraftCode }> }
- * Response: { results: Array<{ gameLabel, home, away, homeScore, awayScore, winner }>, standings: Record<team, { wins, losses, pf, pa }> }
+ * Body: { matchups: Array<{ gameLabel, home, away, draftId, homeDraftLinks, awayDraftLinks }> }
  */
 
 type MatchupInput = {
@@ -18,8 +16,15 @@ type MatchupInput = {
   home: string;
   away: string;
   draftId: number;
-  homeDraftCode?: string;
-  awayDraftCode?: string;
+  homeDraftLinks?: string[];
+  awayDraftLinks?: string[];
+};
+
+type PlayerScore = {
+  userId: string;
+  userName: string;
+  score: number;
+  players: { name: string; score: number; multiplier: string }[];
 };
 
 type MatchupResult = {
@@ -28,10 +33,35 @@ type MatchupResult = {
   away: string;
   homeScore: number | null;
   awayScore: number | null;
+  homePlayerScores: PlayerScore[];
+  awayPlayerScores: PlayerScore[];
   winner: "home" | "away" | "tie" | null;
   forfeit?: "home" | "away";
   dq?: "home" | "away";
 };
+
+/** Fetch one player's draft and return a summary */
+async function fetchPlayerScore(
+  draftId: number,
+  userId: string,
+): Promise<PlayerScore | null> {
+  try {
+    const draft = await fetchDraftEntry(draftId, userId);
+    if (!draft) return null;
+    return {
+      userId,
+      userName: draft.userName,
+      score: draft.totalScore,
+      players: draft.lineup.map((p) => ({
+        name: p.displayName,
+        score: p.score,
+        multiplier: p.multiplierDisplay,
+      })),
+    };
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -42,11 +72,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ results: [], standings: {} });
     }
 
-    const standings: Record<string, { wins: number; losses: number; pf: number; pa: number }> = {};
+    const standings: Record<
+      string,
+      { wins: number; losses: number; pf: number; pa: number }
+    > = {};
 
-    // Process matchups in parallel batches of 4 to avoid overwhelming the API
+    // Process matchups in batches of 2 (each matchup may trigger up to 10 API calls)
     const results: MatchupResult[] = [];
-    const batchSize = 4;
+    const batchSize = 2;
 
     for (let i = 0; i < matchups.length; i += batchSize) {
       const batch = matchups.slice(i, i + batchSize);
@@ -58,17 +91,22 @@ export async function POST(request: Request) {
             away: m.away,
             homeScore: null,
             awayScore: null,
+            homePlayerScores: [],
+            awayPlayerScores: [],
             winner: null,
           };
 
-          const homeLower = (m.homeDraftCode ?? "").toLowerCase();
-          const awayLower = (m.awayDraftCode ?? "").toLowerCase();
+          const homeLinks = m.homeDraftLinks ?? [];
+          const awayLinks = m.awayDraftLinks ?? [];
 
-          // Handle forfeits
+          // Check for FORFEIT / DQ (stored as single-element arrays)
+          const homeLower = homeLinks[0]?.toLowerCase() ?? "";
+          const awayLower = awayLinks[0]?.toLowerCase() ?? "";
+
           if (homeLower === "forfeit") {
             result.forfeit = "home";
             result.homeScore = 0;
-            result.awayScore = 1; // symbolic win
+            result.awayScore = 1;
             result.winner = "away";
             return result;
           }
@@ -80,32 +118,48 @@ export async function POST(request: Request) {
             return result;
           }
 
-          // Handle DQs
           const homeDQ = homeLower === "dq";
           const awayDQ = awayLower === "dq";
           if (homeDQ) result.dq = "home";
           if (awayDQ) result.dq = "away";
 
-          // Fetch drafts from Real Sports API
-          const [homeDraft, awayDraft] = await Promise.all([
-            m.homeDraftCode && !homeDQ
-              ? fetchDraftEntry(m.draftId, m.homeDraftCode)
-              : null,
-            m.awayDraftCode && !awayDQ
-              ? fetchDraftEntry(m.draftId, m.awayDraftCode)
-              : null,
+          // Fetch all player drafts in parallel
+          const validHomeLinks = homeDQ
+            ? []
+            : homeLinks.filter(
+                (l) => l && !["forfeit", "dq"].includes(l.toLowerCase()),
+              );
+          const validAwayLinks = awayDQ
+            ? []
+            : awayLinks.filter(
+                (l) => l && !["forfeit", "dq"].includes(l.toLowerCase()),
+              );
+
+          const [homeScores, awayScores] = await Promise.all([
+            Promise.all(
+              validHomeLinks.map((code) => fetchPlayerScore(m.draftId, code)),
+            ),
+            Promise.all(
+              validAwayLinks.map((code) => fetchPlayerScore(m.draftId, code)),
+            ),
           ]);
 
-          if (homeDraft) {
-            result.homeScore = homeDraft.totalScore;
-          } else if (homeDQ) {
-            result.homeScore = 0;
-          }
+          const homePlayerScores = homeScores.filter(Boolean) as PlayerScore[];
+          const awayPlayerScores = awayScores.filter(Boolean) as PlayerScore[];
 
-          if (awayDraft) {
-            result.awayScore = awayDraft.totalScore;
-          } else if (awayDQ) {
-            result.awayScore = 0;
+          result.homePlayerScores = homePlayerScores;
+          result.awayPlayerScores = awayPlayerScores;
+
+          // Sum total scores per team
+          if (homePlayerScores.length > 0 || homeDQ) {
+            result.homeScore = homeDQ
+              ? 0
+              : homePlayerScores.reduce((sum, p) => sum + p.score, 0);
+          }
+          if (awayPlayerScores.length > 0 || awayDQ) {
+            result.awayScore = awayDQ
+              ? 0
+              : awayPlayerScores.reduce((sum, p) => sum + p.score, 0);
           }
 
           // Determine winner
@@ -124,12 +178,14 @@ export async function POST(request: Request) {
       results.push(...batchResults);
     }
 
-    // Compute standings from results
+    // Compute standings delta from results
     for (const r of results) {
       if (r.homeScore === null && r.awayScore === null) continue;
 
-      if (!standings[r.home]) standings[r.home] = { wins: 0, losses: 0, pf: 0, pa: 0 };
-      if (!standings[r.away]) standings[r.away] = { wins: 0, losses: 0, pf: 0, pa: 0 };
+      if (!standings[r.home])
+        standings[r.home] = { wins: 0, losses: 0, pf: 0, pa: 0 };
+      if (!standings[r.away])
+        standings[r.away] = { wins: 0, losses: 0, pf: 0, pa: 0 };
 
       if (r.homeScore !== null) {
         standings[r.home].pf += r.homeScore;

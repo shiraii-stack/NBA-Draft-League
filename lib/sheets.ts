@@ -175,84 +175,128 @@ function parseSchedule(csv: string): Game[] {
   const awayScoreIdx = findCol(header, "awayscore");
   const draftIdIdx = findCol(header, "draftid", "contestid", "draft_id");
 
-  console.log("[v0] Schedule header:", JSON.stringify(header));
-  console.log("[v0] Column indices: date=" + dateIdx + " gameId=" + gameIdIdx + " home=" + homeIdx + " away=" + awayIdx + " homeLink=" + homeLinkIdx + " awayLink=" + awayLinkIdx + " draftId=" + draftIdIdx);
-  if (rows.length > 1) {
-    console.log("[v0] Raw row 1:", JSON.stringify(rows[1]));
-    console.log("[v0] Raw row 2:", JSON.stringify(rows[2]));
-  }
   if (dateIdx === -1 || gameIdIdx === -1 || homeIdx === -1 || awayIdx === -1) return [];
 
-  // Group rows by GameID
-  const gameMap = new Map<string, { date: string; sport: string; matchups: Matchup[] }>();
+  // The spreadsheet has MULTIPLE ROWS per matchup (one per player).
+  // We need to group rows by GameID + HomeTeam + AwayTeam and collect
+  // all the individual player draft links into arrays.
+  type MatchupAccum = {
+    date: string;
+    sport: string;
+    draftId?: number;
+    homeDraftLinks: string[];   // user IDs extracted from HomeLink URLs
+    awayDraftLinks: string[];   // user IDs extracted from AwayLink URLs
+    homeScore?: number;
+    awayScore?: number;
+  };
+
+  // gameId -> "away|home" -> accumulated data
+  const gameMap = new Map<string, Map<string, MatchupAccum>>();
 
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     const gameId = row[gameIdIdx]?.trim();
-    const date = row[dateIdx]?.trim();
+    const date = row[dateIdx]?.trim() || "";
     const home = row[homeIdx]?.trim();
     const away = row[awayIdx]?.trim();
-    const homeLink = homeLinkIdx >= 0 ? extractDraftCode(row[homeLinkIdx] ?? "") : "";
-    const awayLink = awayLinkIdx >= 0 ? extractDraftCode(row[awayLinkIdx] ?? "") : "";
-    const sport = sportIdx >= 0 ? row[sportIdx]?.trim() : "NBA";
-    const homeScore = homeScoreIdx >= 0 ? row[homeScoreIdx]?.trim() : "";
-    const awayScore = awayScoreIdx >= 0 ? row[awayScoreIdx]?.trim() : "";
-    const draftIdRaw = draftIdIdx >= 0 ? row[draftIdIdx]?.trim() : "";
-    // Also try extracting the raw HomeLink/AwayLink before code extraction
-    const rawHomeLink = homeLinkIdx >= 0 ? row[homeLinkIdx]?.trim() ?? "" : "";
-    const rawAwayLink = awayLinkIdx >= 0 ? row[awayLinkIdx]?.trim() ?? "" : "";
-
     if (!gameId || !home || !away) continue;
 
-    if (!gameMap.has(gameId)) {
-      gameMap.set(gameId, { date: date || "", sport: sport || "NBA", matchups: [] });
-    }
+    const rawHomeLink = homeLinkIdx >= 0 ? row[homeLinkIdx]?.trim() ?? "" : "";
+    const rawAwayLink = awayLinkIdx >= 0 ? row[awayLinkIdx]?.trim() ?? "" : "";
+    const homeCode = extractDraftCode(rawHomeLink);
+    const awayCode = extractDraftCode(rawAwayLink);
+    const sport = sportIdx >= 0 ? row[sportIdx]?.trim() || "NBA" : "NBA";
+    const homeScoreRaw = homeScoreIdx >= 0 ? row[homeScoreIdx]?.trim() : "";
+    const awayScoreRaw = awayScoreIdx >= 0 ? row[awayScoreIdx]?.trim() : "";
+    const draftIdRaw = draftIdIdx >= 0 ? row[draftIdIdx]?.trim() : "";
 
-    const matchup: Matchup = { away, home };
-
-    // Parse draft ID: first try the DraftID column, then try extracting from the URLs
     const parsedDraftId = extractDraftId(draftIdRaw)
       ?? extractDraftId(rawHomeLink)
       ?? extractDraftId(rawAwayLink);
-    if (parsedDraftId) {
-      matchup.draftId = parsedDraftId;
+
+    const matchupKey = `${away}|${home}`;
+
+    if (!gameMap.has(gameId)) {
+      gameMap.set(gameId, new Map());
+    }
+    const matchups = gameMap.get(gameId)!;
+
+    if (!matchups.has(matchupKey)) {
+      matchups.set(matchupKey, {
+        date,
+        sport,
+        draftId: parsedDraftId,
+        homeDraftLinks: [],
+        awayDraftLinks: [],
+      });
     }
 
-    // HomeLink / AwayLink are Real Sports user draft codes (extracted from full URLs)
-    if (homeLink) {
-      matchup.homeDraftCode = homeLink;
-    }
-    if (awayLink) {
-      matchup.awayDraftCode = awayLink;
+    const accum = matchups.get(matchupKey)!;
+    if (!accum.draftId && parsedDraftId) accum.draftId = parsedDraftId;
+    if (!accum.date && date) accum.date = date;
+
+    // Collect player draft codes (skip special keywords -- they apply to the whole matchup)
+    const homeLower = homeCode.toLowerCase();
+    const awayLower = awayCode.toLowerCase();
+
+    if (homeCode && homeLower !== "forfeit" && homeLower !== "dq") {
+      accum.homeDraftLinks.push(homeCode);
+    } else if (homeLower === "forfeit" || homeLower === "dq") {
+      // Store as a single-element array with the keyword
+      if (!accum.homeDraftLinks.includes(homeCode)) {
+        accum.homeDraftLinks = [homeCode];
+      }
     }
 
-    // Debug: log first few matchups with draft data
-    if (i <= 5 || (homeLink || awayLink)) {
-      console.log(`[v0] Row ${i}: ${away} @ ${home} | draftId=${matchup.draftId} | homeCode=${homeLink} | awayCode=${awayLink} | rawHome=${rawHomeLink.substring(0, 80)}`);
+    if (awayCode && awayLower !== "forfeit" && awayLower !== "dq") {
+      accum.awayDraftLinks.push(awayCode);
+    } else if (awayLower === "forfeit" || awayLower === "dq") {
+      if (!accum.awayDraftLinks.includes(awayCode)) {
+        accum.awayDraftLinks = [awayCode];
+      }
     }
 
-    if (homeScore && !Number.isNaN(Number(homeScore))) {
-      matchup.homeScore = Number(homeScore);
+    // If there are explicit scores in the sheet, use the last non-empty one
+    if (homeScoreRaw && !Number.isNaN(Number(homeScoreRaw))) {
+      accum.homeScore = Number(homeScoreRaw);
     }
-    if (awayScore && !Number.isNaN(Number(awayScore))) {
-      matchup.awayScore = Number(awayScore);
+    if (awayScoreRaw && !Number.isNaN(Number(awayScoreRaw))) {
+      accum.awayScore = Number(awayScoreRaw);
     }
-
-    gameMap.get(gameId)!.matchups.push(matchup);
   }
 
+  // Build final Game[] from accumulated data
   const games: Game[] = [];
   let idx = 0;
-  for (const [label, data] of gameMap) {
-    const played = data.matchups.some(
+  for (const [label, matchupMap] of gameMap) {
+    const matchups: Matchup[] = [];
+    let gameDate = "";
+    let gameSport = "NBA";
+
+    for (const [key, accum] of matchupMap) {
+      const [away, home] = key.split("|");
+      if (!gameDate && accum.date) gameDate = accum.date;
+      if (accum.sport) gameSport = accum.sport;
+
+      const matchup: Matchup = { away, home };
+      if (accum.draftId) matchup.draftId = accum.draftId;
+      if (accum.homeDraftLinks.length > 0) matchup.homeDraftLinks = accum.homeDraftLinks;
+      if (accum.awayDraftLinks.length > 0) matchup.awayDraftLinks = accum.awayDraftLinks;
+      if (accum.homeScore !== undefined) matchup.homeScore = accum.homeScore;
+      if (accum.awayScore !== undefined) matchup.awayScore = accum.awayScore;
+
+      matchups.push(matchup);
+    }
+
+    const played = matchups.some(
       (m) => m.homeScore !== undefined && m.awayScore !== undefined
     );
     games.push({
       id: idx++,
       label,
-      date: data.date,
-      sport: data.sport,
-      matchups: data.matchups,
+      date: gameDate,
+      sport: gameSport,
+      matchups,
       played,
     });
   }
@@ -348,10 +392,10 @@ export async function fetchSeasonData(config: SeasonConfig): Promise<{
     if (scheduleCSV) {
       const parsed = parseSchedule(scheduleCSV);
       const withDrafts = parsed.filter(g => g.matchups.some(m => m.draftId));
-      console.log("[v0] Parsed schedule: games=" + parsed.length + " withDrafts=" + withDrafts.length);
+      console.log("[v0] Schedule: " + parsed.length + " games, " + withDrafts.length + " with drafts");
       if (withDrafts.length > 0) {
-        const sampleM = withDrafts[0].matchups.find(m => m.draftId);
-        console.log("[v0] Sample matchup: draftId=" + sampleM?.draftId + " homeCode=" + sampleM?.homeDraftCode + " awayCode=" + sampleM?.awayDraftCode);
+        const sampleM = withDrafts[0].matchups[0];
+        console.log("[v0] Sample: " + sampleM?.away + " @ " + sampleM?.home + " draftId=" + sampleM?.draftId + " homeLinks=" + (sampleM?.homeDraftLinks?.length ?? 0) + " awayLinks=" + (sampleM?.awayDraftLinks?.length ?? 0));
       }
       if (parsed.length > 0) scheduleData = parsed;
     }

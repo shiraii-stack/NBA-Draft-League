@@ -169,11 +169,11 @@ function MatchupCard({
   const awayColor = getTeamColorFromList(teams, matchup.away);
   const homeColor = getTeamColorFromList(teams, matchup.home);
 
-  const hasDraftData =
-    matchup.draftId && (matchup.homeDraftCode || matchup.awayDraftCode);
-  const hasLinkData =
-    matchup.homeDraftLinks?.length || matchup.awayDraftLinks?.length;
-  const isClickable = hasDraftData || hasLinkData;
+  const hasDraftLinks =
+    matchup.draftId &&
+    ((matchup.homeDraftLinks && matchup.homeDraftLinks.length > 0) ||
+     (matchup.awayDraftLinks && matchup.awayDraftLinks.length > 0));
+  const isClickable = !!hasDraftLinks;
 
   return (
     <div className="rounded-lg border border-border bg-card/50 transition-colors hover:bg-card">
@@ -257,74 +257,70 @@ function MatchupCard({
         )}
       </button>
 
-      {/* Expanded draft details */}
-      {expanded && (
+      {/* Expanded draft details -- one DraftLineupPanel per player */}
+      {expanded && hasDraftLinks && matchup.draftId && (
         <div className="border-t border-border px-4 py-3">
-          {hasDraftData && matchup.draftId ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              {matchup.awayDraftCode && !["forfeit", "dq"].includes(matchup.awayDraftCode.toLowerCase()) && (
-                <DraftLineupPanel
-                  label={`${matchup.away} Draft`}
-                  draftId={matchup.draftId}
-                  draftCode={matchup.awayDraftCode}
-                  teamColor={awayColor}
-                />
-              )}
-              {matchup.awayDraftCode?.toLowerCase() === "forfeit" && (
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Away team drafts */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: awayColor }} />
+                <span className="text-xs font-bold uppercase tracking-wider text-foreground">{matchup.away}</span>
+              </div>
+              {matchup.awayDraftLinks?.[0]?.toLowerCase() === "forfeit" ? (
                 <div className="flex items-center gap-2 rounded bg-red-500/10 px-3 py-2">
-                  <span className="text-xs font-bold uppercase text-red-400">{matchup.away} -- FORFEIT</span>
+                  <span className="text-xs font-bold uppercase text-red-400">FORFEIT</span>
                 </div>
-              )}
-              {matchup.awayDraftCode?.toLowerCase() === "dq" && (
+              ) : matchup.awayDraftLinks?.[0]?.toLowerCase() === "dq" ? (
                 <div className="flex items-center gap-2 rounded bg-amber-500/10 px-3 py-2">
-                  <span className="text-xs font-bold uppercase text-amber-400">{matchup.away} -- DISQUALIFIED</span>
+                  <span className="text-xs font-bold uppercase text-amber-400">DISQUALIFIED</span>
                 </div>
+              ) : (
+                matchup.awayDraftLinks?.filter(code => !["forfeit", "dq"].includes(code.toLowerCase())).map((code, i) => (
+                  <DraftLineupPanel
+                    key={`away-${code}`}
+                    label={`Player ${i + 1}`}
+                    draftId={matchup.draftId!}
+                    draftCode={code}
+                    teamColor={awayColor}
+                  />
+                ))
               )}
-              {matchup.homeDraftCode && !["forfeit", "dq"].includes(matchup.homeDraftCode.toLowerCase()) && (
-                <DraftLineupPanel
-                  label={`${matchup.home} Draft`}
-                  draftId={matchup.draftId}
-                  draftCode={matchup.homeDraftCode}
-                  teamColor={homeColor}
-                />
-              )}
-              {matchup.homeDraftCode?.toLowerCase() === "forfeit" && (
-                <div className="flex items-center gap-2 rounded bg-red-500/10 px-3 py-2">
-                  <span className="text-xs font-bold uppercase text-red-400">{matchup.home} -- FORFEIT</span>
-                </div>
-              )}
-              {matchup.homeDraftCode?.toLowerCase() === "dq" && (
-                <div className="flex items-center gap-2 rounded bg-amber-500/10 px-3 py-2">
-                  <span className="text-xs font-bold uppercase text-amber-400">{matchup.home} -- DISQUALIFIED</span>
-                </div>
+              {(!matchup.awayDraftLinks || matchup.awayDraftLinks.length === 0) && (
+                <span className="text-xs text-muted-foreground">No drafts submitted</span>
               )}
             </div>
-          ) : hasLinkData ? (
-            <div className="flex flex-wrap gap-2">
-              {matchup.awayDraftLinks?.map((link, i) => (
-                <a
-                  key={`away-${i}`}
-                  href={link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center rounded border border-border bg-muted/30 px-2.5 py-1 text-[10px] text-primary transition-colors hover:bg-primary/10"
-                >
-                  {matchup.away} Draft {i + 1}
-                </a>
-              ))}
-              {matchup.homeDraftLinks?.map((link, i) => (
-                <a
-                  key={`home-${i}`}
-                  href={link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center rounded border border-border bg-muted/30 px-2.5 py-1 text-[10px] text-primary transition-colors hover:bg-primary/10"
-                >
-                  {matchup.home} Draft {i + 1}
-                </a>
-              ))}
+
+            {/* Home team drafts */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="h-3 w-3 rounded-full" style={{ backgroundColor: homeColor }} />
+                <span className="text-xs font-bold uppercase tracking-wider text-foreground">{matchup.home}</span>
+              </div>
+              {matchup.homeDraftLinks?.[0]?.toLowerCase() === "forfeit" ? (
+                <div className="flex items-center gap-2 rounded bg-red-500/10 px-3 py-2">
+                  <span className="text-xs font-bold uppercase text-red-400">FORFEIT</span>
+                </div>
+              ) : matchup.homeDraftLinks?.[0]?.toLowerCase() === "dq" ? (
+                <div className="flex items-center gap-2 rounded bg-amber-500/10 px-3 py-2">
+                  <span className="text-xs font-bold uppercase text-amber-400">DISQUALIFIED</span>
+                </div>
+              ) : (
+                matchup.homeDraftLinks?.filter(code => !["forfeit", "dq"].includes(code.toLowerCase())).map((code, i) => (
+                  <DraftLineupPanel
+                    key={`home-${code}`}
+                    label={`Player ${i + 1}`}
+                    draftId={matchup.draftId!}
+                    draftCode={code}
+                    teamColor={homeColor}
+                  />
+                ))
+              )}
+              {(!matchup.homeDraftLinks || matchup.homeDraftLinks.length === 0) && (
+                <span className="text-xs text-muted-foreground">No drafts submitted</span>
+              )}
             </div>
-          ) : null}
+          </div>
         </div>
       )}
     </div>
